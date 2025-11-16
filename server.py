@@ -30,6 +30,7 @@ class PhonebookServer:
                 print(f"📂 No existing file found. Starting with empty phonebook.")
         except Exception as e:
             print(f"❌ Error loading file: {e}")
+            print("\n❌503 Service Unavailable")
 
     def save_to_file(self):
         try:
@@ -39,19 +40,22 @@ class PhonebookServer:
             print(f"💾 Saved {len(self.phonebook)} contacts to {self.filename}")
         except Exception as e:
             print(f"❌ Error saving file: {e}")
+            print("\n❌503 Service Unavailable")
 
     def start(self):
         self.server_socket.bind((self.host, self.port))
-        self.server_socket.listen(5)
+        self.server_socket.listen(1)
         print(f"📞 Phonebook Server listening on {self.host}:{self.port}")
-        print(f"Waiting for connection (Please Run Client)")
+        print(f"🔄 Status: Ready and waiting for incoming connections")
+        print(f"⏳ Waiting for connection (Please Run Client)...")
+
 
         while True:
             try:
                 client_socket, client_address = self.server_socket.accept()
                 print(f"🔌 Client connected: {client_address}")
                 print(f"✅ Go on Client: {client_address}")
-
+                print("✅200 Ok!")
                 thread = threading.Thread(
                     target=self.handle_client,
                     args=(client_socket,)
@@ -60,26 +64,23 @@ class PhonebookServer:
                 thread.start()
             except KeyboardInterrupt:
                 print("\n🛑 Server shutting down...")
+                print("\n❌503 Service Unavailable")
                 break
             except Exception as e:
                 print(f"❌ Server error: {e}")
+                print("\n❌503 Service Unavailable")
 
     def handle_client(self, client_socket):
         try:
             while True:
-                data = client_socket.recv(1024)
-
+                data = client_socket.recv(128)
                 if not data:
                     break
-
                 request = data.decode('utf-8').strip()
                 print(f"📨 Received: {request}")
-
                 response = self.process_request(request)
                 print(f"📤 Sending: {response}")
-
                 client_socket.send(response.encode('utf-8'))
-
         except ConnectionResetError:
             print("⚠️  Client disconnected unexpectedly")
         except Exception as e:
@@ -87,15 +88,13 @@ class PhonebookServer:
         finally:
             client_socket.close()
             print("🔌 Client connection closed")
+            print("✅200 Ok!")
 
     def process_request(self, request):
-        """עיבוד הבקשה והחזרת תשובה"""
         try:
             parts = request.strip().split('|')
-
             if len(parts) == 0:
-                return "ERROR: Empty command"
-
+                return "ERROR: Empty command \n❌404 Not Found"
             command = parts[0].upper()
 
             if command == "ADD":
@@ -103,17 +102,19 @@ class PhonebookServer:
                     name = parts[1].strip()
                     lastname = parts[2].strip()
                     phone = parts[3].strip()
-
-                    if not name or not lastname or not phone:
-                        return "ERROR: Name, lastname and phone cannot be empty"
-
                     full_name = name + " " + lastname
+                    if full_name in self.phonebook:
+                        return (f"ERROR: Contact '{full_name}' already exists with phone: {self.phonebook[full_name]}"
+                                f"\n❌403 Forbidden")
+                    if 7 > len(phone) < 12:
+                        return f"{full_name} Phone must contain 8 - 12 digits \n❌400 Bad Request"
+                    if not name or not lastname or not phone:
+                        return "ERROR: Name, lastname and phone cannot be empty\n❌400 Bad Request"
                     self.phonebook[full_name] = phone
                     self.save_to_file()
-
-                    return f"✅ Added: {full_name} -> {phone}"
+                    return f"✅ Added: {full_name} -> {phone}\n✅200 Ok!"
                 else:
-                    return "ERROR: Format should be ADD|Name|Lastname|Phone"
+                    return "ERROR: Format should be ADD|Name|Lastname|Phone\n❌403 Forbidden"
 
             elif command == "GET":
                 if len(parts) == 3:
@@ -123,32 +124,30 @@ class PhonebookServer:
                     phone = self.phonebook.get(full_name)
 
                     if phone:
-                        return f"{phone}"
+                        return f"{phone}\n✅200 Ok!"
                     else:
-                        return "NOT_FOUND"
+                        return "NOT_FOUND\n❌404 Not Found"
                 else:
-                    return "ERROR: Format should be GET|Name|Lastname"
+                    return "ERROR: Format should be GET|Name|Lastname\n❌403 Forbidden"
 
             elif command == "UPDATE":
                 if len(parts) == 4:
                     name = parts[1].strip()
                     lastname = parts[2].strip()
                     new_phone = parts[3].strip()
-
-                    if not name or not lastname or not new_phone:
-                        return "ERROR: Name, lastname and phone cannot be empty"
-
                     full_name = name + " " + lastname
 
+                    if not name or not lastname or not new_phone:
+                        return "ERROR: Name, lastname and phone cannot be empty\n❌403 Forbidden"
                     if full_name in self.phonebook:
                         old_phone = self.phonebook[full_name]
                         self.phonebook[full_name] = new_phone
                         self.save_to_file()
-                        return f"🔄 Updated: {full_name} | Old: {old_phone} -> New: {new_phone}"
+                        return f"🔄 Updated: {full_name} | Old: {old_phone} -> New: {new_phone}\n✅200 Ok!"
                     else:
-                        return "NOT_FOUND"
+                        return "NOT_FOUND\n❌404 Not Found"
                 else:
-                    return "ERROR: Format should be UPDATE|Name|Lastname|NewPhone"
+                    return "ERROR: Format should be UPDATE|Name|Lastname|NewPhone\n❌403 Forbidden"
 
             elif command == "REMOVE":
                 if len(parts) == 3:
@@ -160,28 +159,24 @@ class PhonebookServer:
                         phone = self.phonebook[full_name]
                         del self.phonebook[full_name]
                         self.save_to_file()
-
-                        return f"🗑️ Deleted: {full_name} ({phone})"
+                        return f"🗑️ Deleted: {full_name} ({phone})\n✅200 Ok!"
                     else:
-                        return "NOT_FOUND"
+                        return "NOT_FOUND \n❌404 Not Found"
                 else:
-                    return "ERROR: Format should be REMOVE|Name|Lastname"
+                    return "ERROR: Format should be REMOVE|Name|Lastname\n❌403 Forbidden"
 
             elif command == "LIST":
                 if len(self.phonebook) == 0:
-                    return "EMPTY"
+                    return f"EMPTY \n❌404 Not Found"
                 else:
                     result = []
                     for name, phone in self.phonebook.items():
                         result.append(f"{name}: {phone}")
-                    return "\n".join(result)
-
+                    return f"{'\n'.join(result)} \n✅200 Ok!"
             else:
-                return f"ERROR: Unknown command '{command}'. Use ADD, GET, DELETE, UPDATE, or LIST"
-
+                return f"ERROR: Unknown command '{command}'. Use ADD, GET, DELETE, UPDATE, or LIST\n❌400 Bad Request:"
         except Exception as e:
             return f"ERROR: {str(e)}"
-
 
 if __name__ == "__main__":
     server = PhonebookServer()

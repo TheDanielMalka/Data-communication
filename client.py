@@ -11,20 +11,22 @@ class PhonebookClient:
         try:
             self.socket.connect(self.server_address)
             print("✅ Connected to phonebook server")
+            print("✅200 Ok!")
             return True
         except Exception as e:
             print(f"❌ Connection failed: {e}")
             print(f"❌ Please run server first than run client")
+            print(f"❌503 Service Unavailable")
             return False
 
     def send_command(self, command):
-        """שליחת פקודה לשרת וקבלת תשובה"""
         try:
             self.socket.send(command.encode('utf-8'))
-            response = self.socket.recv(1024).decode('utf-8')
+            response = self.socket.recv(128).decode('utf-8')
             return response
         except Exception as e:
             print(f"❌ Error: {e}")
+            print(f"❌503 Service Unavailable")
             return None
 
     def add_contact(self, name, lastname, phone):
@@ -61,7 +63,7 @@ class PhonebookClient:
         print("\n📞 Phonebook Client - Interactive Mode")
         print("Commands:")
         print("  add <name> <lastname> <phone>  - Add contact")
-        print("  get <name>  - Get phone number")
+        print("  get <name> <lastname>  - Get phone number")
         print("  remove <name> <phone> - Remove contact")
         print("  update <name> <lastname> <phone>  - Update contact")
         print("  list  - List all contacts")
@@ -89,12 +91,13 @@ class PhonebookClient:
             elif command == "list":
                 self.list_all()
             else:
-                print("Invalid command")
+                print("❌400 Bad Request")
 
     def close(self):
-        """סגירת החיבור"""
         self.socket.close()
         print("🔌 Disconnected")
+        print("✅200 Ok!")
+
 
 
 if __name__ == "__main__":
