@@ -44,7 +44,7 @@ class PhonebookServer:
 
     def start(self):
         self.server_socket.bind((self.host, self.port))
-        self.server_socket.listen(5)
+        self.server_socket.listen(1)
         print(f"📞 Phonebook Server listening on {self.host}:{self.port}")
         print(f"🔄 Status: Ready and waiting for incoming connections")
         print(f"⏳ Waiting for connection (Please Run Client)...")
